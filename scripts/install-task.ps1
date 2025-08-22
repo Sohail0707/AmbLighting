@@ -8,6 +8,11 @@ Param(
 	[switch]$Hidden
 )
 
+# Guard against accidental empty or '-' names
+if ([string]::IsNullOrWhiteSpace($TaskName) -or $TaskName -eq '-') {
+	$TaskName = 'AmbLighting-ColorExtractor'
+}
+
 function Get-DefaultExePath {
 	$repoRoot = Split-Path -Path $PSScriptRoot -Parent
 	$candidates = @(
@@ -26,6 +31,20 @@ if ($Remove) {
 		Write-Host "Removed scheduled task '$TaskName'."
 	} catch {
 		Write-Warning "Failed to remove task '$TaskName': $($_.Exception.Message)"
+		# Fallback: try removing any task pointing at ColorExtractor.exe
+		try {
+			$candidates = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object {
+				($_.TaskName -eq $TaskName) -or (
+					($_.Actions | ForEach-Object { $_.Execute }) -match 'ColorExtractor\.exe'
+				)
+			}
+			foreach ($t in $candidates) {
+				Unregister-ScheduledTask -TaskName $t.TaskName -Confirm:$false -ErrorAction SilentlyContinue
+				Write-Host "Removed scheduled task '$($t.TaskName)' (matched by action path)."
+			}
+		} catch {
+			Write-Warning "Fallback removal by path also failed: $($_.Exception.Message)"
+		}
 	}
 	return
 }

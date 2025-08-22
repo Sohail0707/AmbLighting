@@ -5,6 +5,7 @@ One-shot bootstrap for Windows:
  - Registers a Hidden scheduled task to run at user logon
 #>
 Param(
+    [string]$TaskName = 'AmbLighting-ColorExtractor',
     [switch]$Uninstall,
     [switch]$NoHidden,
     [switch]$NoStartNow
@@ -58,14 +59,14 @@ function Register-Startup([string]$exePath) {
     if (-not (Test-Path $installer)) { throw 'Missing scripts/install-task.ps1' }
     $hidden = if ($NoHidden) { @() } else { @('-Hidden') }
     $runNow = if ($NoStartNow) { @() } else { @('-RunNow') }
-    & pwsh -NoProfile -ExecutionPolicy Bypass -File $installer -ExePath $exePath -TriggerType AtLogon @hidden @runNow
+    & pwsh -NoProfile -ExecutionPolicy Bypass -File $installer -TaskName $TaskName -ExePath $exePath -TriggerType AtLogon @hidden @runNow
 }
 
 function Unregister-Startup {
     $root = Get-RepoRoot
     $installer = Join-Path $root 'scripts/install-task.ps1'
     if (Test-Path $installer) {
-        & pwsh -NoProfile -ExecutionPolicy Bypass -File $installer -Remove
+    & pwsh -NoProfile -ExecutionPolicy Bypass -File $installer -TaskName $TaskName -Remove
     }
 }
 
