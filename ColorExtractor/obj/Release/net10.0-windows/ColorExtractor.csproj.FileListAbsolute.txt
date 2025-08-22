@@ -1,0 +1,14 @@
+C:\Users\sohail\coding\amblighting\ColorExtractor\bin\Release\net10.0-windows\ColorExtractor.exe
+C:\Users\sohail\coding\amblighting\ColorExtractor\bin\Release\net10.0-windows\ColorExtractor.deps.json
+C:\Users\sohail\coding\amblighting\ColorExtractor\bin\Release\net10.0-windows\ColorExtractor.runtimeconfig.json
+C:\Users\sohail\coding\amblighting\ColorExtractor\bin\Release\net10.0-windows\ColorExtractor.dll
+C:\Users\sohail\coding\amblighting\ColorExtractor\bin\Release\net10.0-windows\ColorExtractor.pdb
+C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0-windows\ColorExtractor.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0-windows\ColorExtractor.AssemblyInfoInputs.cache
+C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0-windows\ColorExtractor.AssemblyInfo.cs
+C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0-windows\ColorExtractor.csproj.CoreCompileInputs.cache
+C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0-windows\ColorExtractor.dll
+C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0-windows\refint\ColorExtractor.dll
+C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0-windows\ColorExtractor.pdb
+C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0-windows\ColorExtractor.genruntimeconfig.cache
+C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0-windows\ref\ColorExtractor.dll
