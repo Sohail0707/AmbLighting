@@ -1,0 +1,20 @@
+{
+  "ESP32_IP": "192.168.0.189",
+  "ESP32_PORT": 7777,
+  "SampleStep": 4,
+  "LowResourceMode": true,
+  "MarginTop": 80,
+  "MarginBottom": 80,
+  "MarginLeft": 40,
+  "MarginRight": 40,
+  "TopLeds": 37,
+  "BottomLeds": 37,
+  "LeftLeds": 20,
+  "RightLeds": 21,
+  "Offset": 19,
+  "Clockwise": false,
+  "TargetFps": 60,
+  "BoostSaturation": true,
+  "BoostFactor": 1.35,
+  "BoostMinValue": 0.07
+}

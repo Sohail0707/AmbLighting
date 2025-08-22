@@ -48,12 +48,3 @@ _ReSharper*/
 # Test results
 TestResults/
 
-# Python/FastAPI web application
-webApplication/__pycache__/
-webApplication/*.pyc
-webApplication/.env
-webApplication/.venv/
-webApplication/venv/
-webApplication/.mypy_cache/
-webApplication/.pytest_cache/
-webApplication/.DS_Store

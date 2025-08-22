@@ -5,57 +5,73 @@ using System.Windows.Forms;
 using System.Drawing.Imaging;
 using System.Net.Sockets;
 using System.Text;
+using System.IO;
+using System.Text.Json;
+using ColorExtractorApp;
 
 
 // LED order: Start at top-left corner, go right (top edge), then down (right edge), then left (bottom edge), then up (left edge)
 // LED index 0 = top-left, then clockwise
 class ScreenEdgeColorSampler
 {
-    // Set your ESP32 IP and port here
-    static readonly string ESP32_IP = "192.168.0.189";
-    static readonly int ESP32_PORT = 7777;
+    // Config path
+    static readonly string ConfigPath = Path.Combine(AppContext.BaseDirectory, "config.json");
 
     static void Main()
     {
-    int screenWidth = Screen.PrimaryScreen.Bounds.Width;
-    int screenHeight = Screen.PrimaryScreen.Bounds.Height;
-    int marginTop = 80, marginBottom = 80, marginLeft = 40, marginRight = 40;
+    // Load configuration (or create defaults)
+    AppConfig cfg = AppConfig.LoadOrCreate(ConfigPath);
+
+    var primary = Screen.PrimaryScreen;
+    if (primary == null)
+    {
+        var screens = Screen.AllScreens;
+        if (screens.Length == 0) throw new InvalidOperationException("No screens detected.");
+        primary = screens[0];
+    }
+    int screenWidth = primary.Bounds.Width;
+    int screenHeight = primary.Bounds.Height;
+    int marginTop = cfg.MarginTop, marginBottom = cfg.MarginBottom, marginLeft = cfg.MarginLeft, marginRight = cfg.MarginRight;
     // LED layout: Start at middle of bottom edge, go counterclockwise
-    int topLeds = 37, bottomLeds = 37, leftLeds = 20, rightLeds = 21;
+    int topLeds = cfg.TopLeds, bottomLeds = cfg.BottomLeds, leftLeds = cfg.LeftLeds, rightLeds = cfg.RightLeds;
     int totalLeds = topLeds + bottomLeds + leftLeds + rightLeds;
     // Offset: number of boxes to shift so LED1 is at box[offset]
-    int offset = 19; // Set this to your actual offset, e.g., 20
+    int offset = cfg.Offset;
     // LED direction: true = clockwise, false = counterclockwise
-    bool clockwise = false; // Set to false for counterclockwise
+    bool clockwise = cfg.Clockwise;
         // Optional saturation boost (to enhance dull colors)
-        bool boostSaturation = true;
-        double boostFactor = 1.35; // 1.0 = no change, >1 increases saturation
-        double boostMinValue = 0.07; // don't boost near-black
+        bool boostSaturation = cfg.BoostSaturation;
+        double boostFactor = cfg.BoostFactor; // 1.0 = no change
+        double boostMinValue = cfg.BoostMinValue; // don't boost near-black
     // LED index mapping (counterclockwise):
     // 0 .. bottomLeds-1: Bottom edge (middle to left, then right)
     // bottomLeds .. bottomLeds+leftLeds-1: Left edge (bottom to top)
     // bottomLeds+leftLeds .. bottomLeds+leftLeds+topLeds-1: Top edge (right to left)
     // bottomLeds+leftLeds+topLeds .. totalLeds-1: Right edge (top to bottom)
-        int targetFps = 40;
+    int targetFps = cfg.TargetFps;
         int frameTimeMs = 1000 / targetFps;
         Color[] prevColors = new Color[totalLeds];
         bool firstFrame = true;
-        using (UdpClient udp = new UdpClient())
+    using (UdpClient udp = new UdpClient())
+        using (Bitmap bmp = new Bitmap(screenWidth, screenHeight, PixelFormat.Format32bppArgb))
+        using (Graphics g = Graphics.FromImage(bmp))
         {
+            DateTime nextLog = DateTime.UtcNow;
             while (true)
             {
                 var frameStart = DateTime.Now;
                 Color[] currColors = new Color[totalLeds];
-                using (Bitmap bmp = new Bitmap(screenWidth, screenHeight, PixelFormat.Format32bppArgb))
+                // Capture the screen into our reusable bitmap
+                g.CopyFromScreen(0, 0, 0, 0, bmp.Size);
+
+                // Lock once per frame for fast pixel access
+                Rectangle lockRect = new Rectangle(0, 0, bmp.Width, bmp.Height);
+                BitmapData data = bmp.LockBits(lockRect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+                try
                 {
-                    using (Graphics g = Graphics.FromImage(bmp))
-                    {
-                        g.CopyFromScreen(0, 0, 0, 0, bmp.Size);
-                    }
                     int ledIndex = 0;
                     int bottomWidth = screenWidth - marginLeft - marginRight;
                     int bottomHeight = Math.Max(1, screenHeight / 40);
-                    int bottomMid = bottomLeds / 2;
                     int leftHeight = screenHeight - marginTop - marginBottom;
                     int leftWidth = Math.Max(1, screenWidth / 40);
                     int topWidth = screenWidth - marginLeft - marginRight;
@@ -73,9 +89,9 @@ class ScreenEdgeColorSampler
                             bottomWidth / bottomLeds,
                             bottomHeight
                         );
-                            var col = GetAverageColor(bmp, region);
-                            if (boostSaturation) col = BoostSaturation(col, boostFactor, boostMinValue);
-                            currColors[ledIndex] = col;
+                        var col = SampleRegionColorUnsafe(data, region, cfg.SampleStep, cfg.LowResourceMode);
+                        if (boostSaturation) col = BoostSaturation(col, boostFactor, boostMinValue);
+                        currColors[ledIndex] = col;
                     }
                     // Right: bottom -> top
                     for (int i = 0; i < rightLeds; i++, ledIndex++)
@@ -86,9 +102,9 @@ class ScreenEdgeColorSampler
                             rightWidth,
                             rightHeight / rightLeds
                         );
-                            var col = GetAverageColor(bmp, region);
-                            if (boostSaturation) col = BoostSaturation(col, boostFactor, boostMinValue);
-                            currColors[ledIndex] = col;
+                        var col = SampleRegionColorUnsafe(data, region, cfg.SampleStep, cfg.LowResourceMode);
+                        if (boostSaturation) col = BoostSaturation(col, boostFactor, boostMinValue);
+                        currColors[ledIndex] = col;
                     }
                     // Top: right -> left
                     for (int i = topLeds - 1; i >= 0; i--, ledIndex++)
@@ -99,9 +115,9 @@ class ScreenEdgeColorSampler
                             topWidth / topLeds,
                             topHeight
                         );
-                            var col = GetAverageColor(bmp, region);
-                            if (boostSaturation) col = BoostSaturation(col, boostFactor, boostMinValue);
-                            currColors[ledIndex] = col;
+                        var col = SampleRegionColorUnsafe(data, region, cfg.SampleStep, cfg.LowResourceMode);
+                        if (boostSaturation) col = BoostSaturation(col, boostFactor, boostMinValue);
+                        currColors[ledIndex] = col;
                     }
                     // Left: top -> bottom
                     for (int i = 0; i < leftLeds; i++, ledIndex++)
@@ -112,11 +128,16 @@ class ScreenEdgeColorSampler
                             leftWidth,
                             leftHeight / leftLeds
                         );
-                            var col = GetAverageColor(bmp, region);
-                            if (boostSaturation) col = BoostSaturation(col, boostFactor, boostMinValue);
-                            currColors[ledIndex] = col;
+                        var col = SampleRegionColorUnsafe(data, region, cfg.SampleStep, cfg.LowResourceMode);
+                        if (boostSaturation) col = BoostSaturation(col, boostFactor, boostMinValue);
+                        currColors[ledIndex] = col;
                     }
                 }
+                finally
+                {
+                    bmp.UnlockBits(data);
+                }
+
                 // Only send if any color changed
                 bool changed = firstFrame;
                 if (!firstFrame)
@@ -149,11 +170,15 @@ class ScreenEdgeColorSampler
                     foreach (var c in offsetColors)
                         sb.AppendFormat("{0},{1},{2},", c.R, c.G, c.B);
                     if (sb.Length > 0) sb.Length--; // Remove trailing comma
-                    byte[] data = Encoding.ASCII.GetBytes(sb.ToString());
+                    byte[] dataOut = Encoding.ASCII.GetBytes(sb.ToString());
                     try
                     {
-                        udp.Send(data, data.Length, ESP32_IP, ESP32_PORT);
-                        Console.WriteLine($"Sent {totalLeds} colors to {ESP32_IP}:{ESP32_PORT} (offset {offset}, direction {(clockwise ? "CW" : "CCW")})");
+                        udp.Send(dataOut, dataOut.Length, cfg.ESP32_IP, cfg.ESP32_PORT);
+                        if (DateTime.UtcNow >= nextLog)
+                        {
+                            Console.WriteLine($"Sent {totalLeds} colors to {cfg.ESP32_IP}:{cfg.ESP32_PORT} (offset {offset}, direction {(clockwise ? "CW" : "CCW")})");
+                            nextLog = DateTime.UtcNow.AddSeconds(1);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -170,18 +195,46 @@ class ScreenEdgeColorSampler
         }
     }
 
-    static Color GetAverageColor(Bitmap bmp, Rectangle region)
+    // Fast pixel sampling via LockBits; requires AllowUnsafeBlocks=true
+    unsafe static Color SampleRegionColorUnsafe(BitmapData data, Rectangle region, int sampleStep, bool lowResourceMode)
     {
+        int width = data.Width;
+        int height = data.Height;
+        int stride = data.Stride;
+        // Clamp region to bitmap bounds
+        int left = Math.Max(0, region.Left);
+        int top = Math.Max(0, region.Top);
+        int right = Math.Min(width, region.Right);
+        int bottom = Math.Min(height, region.Bottom);
+        if (left >= right || top >= bottom) return Color.Black;
+
+        byte* basePtr = (byte*)data.Scan0.ToPointer();
+
+    if (lowResourceMode)
+        {
+            int cx = Math.Max(0, Math.Min(width - 1, left + Math.Max(1, (right - left)) / 2));
+            int cy = Math.Max(0, Math.Min(height - 1, top + Math.Max(1, (bottom - top)) / 2));
+            byte* p = basePtr + cy * stride + (cx << 2);
+            // Format32bppArgb -> B,G,R,A
+            byte B = p[0];
+            byte G = p[1];
+            byte R = p[2];
+            return Color.FromArgb(R, G, B);
+        }
+
         long r = 0, g = 0, b = 0;
         int count = 0;
-        for (int x = region.Left; x < region.Right; x++)
+    int stepX = Math.Max(1, sampleStep);
+    int stepY = Math.Max(1, sampleStep);
+        for (int y = top; y < bottom; y += stepY)
         {
-            for (int y = region.Top; y < region.Bottom; y++)
+            byte* row = basePtr + y * stride;
+            for (int x = left; x < right; x += stepX)
             {
-                Color pixel = bmp.GetPixel(x, y);
-                r += pixel.R;
-                g += pixel.G;
-                b += pixel.B;
+                byte* p = row + (x << 2);
+                b += p[0];
+                g += p[1];
+                r += p[2];
                 count++;
             }
         }
