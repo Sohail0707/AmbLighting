@@ -1,34 +1,49 @@
-# AmbLighting Setup Instructions
+# AmbLighting — One‑shot Setup (Windows)
 
-Follow these steps to set up and run this project on any Windows machine:
+All commands run from the repo root (this folder). These commands set up everything and put the app in Startup (Hidden).
 
-## Prerequisites
+## Quick Setup (Recommended)
 
-- **.NET 10.0 SDK** (or newer) must be installed. Download from: https://dotnet.microsoft.com/download
-- (Optional) **Git** for version control: https://git-scm.com/downloads
+Run PowerShell as Administrator, then paste:
 
-## Setup Steps
+```powershell
+# Clone (if you haven't already)
+# git clone https://github.com/Sohail0707/AmbLighting.git
+# cd AmbLighting
 
-1. **Clone the repository:**
-   ```sh
-   git clone https://github.com/Sohail0707/AmbLighting.git
-   cd AmbLighting
-   ```
-2. **Restore dependencies:**
-   ```sh
-   dotnet restore ColorExtractor/ColorExtractor.csproj
-   ```
-3. **Build the project:**
-   ```sh
-   dotnet build ColorExtractor/ColorExtractor.csproj -c Release
-   ```
-4. **Run the program:**
-   ```sh
-   ColorExtractor\bin\Release\net10.0-windows\ColorExtractor.exe
-   ```
+# One-shot bootstrap: installs local .NET if missing, publishes app, registers login task (Hidden)
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
+```
+
+That’s it. The app will auto-run at your next logon (and starts once now). Edit `ColorExtractor\config.json` to tweak settings.
+
+## Uninstall / Remove from Startup
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1 -Uninstall
+```
+
+## Manual Setup (Fallback)
+
+If you prefer manual steps or can’t elevate, use these:
+
+```powershell
+# Restore & build Release
+dotnet restore .\ColorExtractor\ColorExtractor.csproj
+dotnet build .\ColorExtractor\ColorExtractor.csproj -c Release
+
+# Register startup task (Hidden) and start once now
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-task.ps1 -TriggerType AtLogon -Hidden -RunNow
+```
+
+To run it immediately without a task:
+
+```powershell
+.\ColorExtractor\bin\Release\net10.0-windows\ColorExtractor.exe
+```
 
 ## Notes
 
-- This project requires Windows due to its use of Windows Forms and screen capture APIs.
-- If you encounter errors about missing dependencies, ensure you have the correct .NET SDK and are on Windows 10 or later.
-- For any issues, check the README or open an issue on the repository.
+- The setup publishes a self‑contained single‑file exe (win‑x64) if needed and registers a Hidden scheduled task.
+- The app is windowless. Logs won’t show at startup. Run the exe manually to see console output.
+- All tunables live in `ColorExtractor\config.json` next to the exe; edit anytime (no rebuild required).
