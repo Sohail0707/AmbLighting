@@ -1,5 +1,0 @@
-C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0\ColorExtractor.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0\ColorExtractor.AssemblyInfoInputs.cache
-C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0\ColorExtractor.AssemblyInfo.cs
-C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0\ColorExtractor.csproj.CoreCompileInputs.cache
-C:\Users\sohail\coding\amblighting\ColorExtractor\obj\Release\net10.0\ColorExtractor.csproj.AssemblyReference.cache
