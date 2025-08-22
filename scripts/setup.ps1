@@ -44,7 +44,7 @@ function Get-DotNet {
 function Publish-App([string]$dotnetExe) {
     $root = Get-RepoRoot
     $proj = Join-Path $root 'ColorExtractor/ColorExtractor.csproj'
-    & $dotnetExe restore $proj
+    & $dotnetExe restore $proj 2>&1 | Out-Null
     # Self-contained, single file
     & $dotnetExe publish $proj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false | Out-Null
     $pub = Join-Path $root 'ColorExtractor/bin/Release/net10.0-windows/win-x64/publish/ColorExtractor.exe'
@@ -80,4 +80,4 @@ Ensure-Admin
 $dotnet = Get-DotNet
 $exe = Publish-App $dotnet
 Register-Startup $exe
-Write-Host "Setup complete. The app will run at logon (Hidden=${(-not $NoHidden)})."
+Write-Host "Setup complete. The app will run at logon (Hidden=$( -not $NoHidden ))."
